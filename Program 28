@@ -1,0 +1,154 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <regex.h>
+#include <errno.h>
+
+void print_usage(const char *prog) {
+    fprintf(stderr,
+        "Usage: %s [-i] [-n] [-v] [-c] [-l] PATTERN [FILE...]\n"
+        "Options:\n"
+        "  -i  case-insensitive\n"
+        "  -n  show line numbers\n"
+        "  -v  invert match\n"
+        "  -c  print count of matching lines per file\n"
+        "  -l  print only names of files with matches\n", prog);
+}
+
+/* Process a single file (or stdin if filename == NULL) */
+int process_stream(FILE *fp, const char *filename, regex_t *re,
+                   int show_filename, int flag_n, int flag_v, int flag_c, int flag_l) {
+    ssize_t read;
+    size_t len = 0;
+    char *line = NULL;
+    unsigned long lineno = 0;
+    unsigned long match_count = 0;
+    int any_match_for_file = 0;
+
+    while ((read = getline(&line, &len, fp)) != -1) {
+        lineno++;
+        /* remove trailing newline? keep it for printing, but regexec works regardless */
+        int reti = regexec(re, line, 0, NULL, 0);
+        int is_match = (reti == 0);
+
+        if (flag_v) is_match = !is_match;
+
+        if (is_match) {
+            any_match_for_file = 1;
+            match_count++;
+            if (!flag_c && !flag_l) {
+                if (show_filename && filename) printf("%s:", filename);
+                if (flag_n) printf("%lu:", lineno);
+                /* print line exactly as read */
+                fputs(line, stdout);
+                /* getline leaves newline intact; ensure newline */
+                if (line[read-1] != '\n') putchar('\n');
+            }
+        }
+    }
+
+    free(line);
+
+    if (flag_l) {
+        if (any_match_for_file) {
+            if (filename) printf("%s\n", filename);
+            else printf("(standard input)\n");
+        }
+    } else if (flag_c) {
+        if (show_filename && filename) printf("%s:", filename);
+        printf("%lu\n", match_count);
+    }
+
+    return any_match_for_file;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        print_usage(argv[0]);
+        return 2;
+    }
+
+    int flag_i = 0, flag_n = 0, flag_v = 0, flag_c = 0, flag_l = 0;
+    int argi = 1;
+
+    /* parse options that start with '-' until we reach a non-option or pattern */
+    while (argi < argc && argv[argi][0] == '-' && argv[argi][1] != '\0') {
+        /* special case: pattern might legitimately start with '-' - to allow that user can send -- before pattern */
+        if (strcmp(argv[argi], "--") == 0) { argi++; break; }
+        /* if next arg looks like an option combined with characters, parse each */
+        int j;
+        for (j = 1; argv[argi][j] != '\0'; ++j) {
+            char opt = argv[argi][j];
+            switch (opt) {
+                case 'i': flag_i = 1; break;
+                case 'n': flag_n = 1; break;
+                case 'v': flag_v = 1; break;
+                case 'c': flag_c = 1; break;
+                case 'l': flag_l = 1; break;
+                default:
+                    fprintf(stderr, "Unknown option -%c\n", opt);
+                    print_usage(argv[0]);
+                    return 2;
+            }
+        }
+        argi++;
+        /* if we've consumed all args and still don't have pattern, it's an error */
+        if (argi >= argc) {
+            fprintf(stderr, "Error: missing pattern\n");
+            print_usage(argv[0]);
+            return 2;
+        }
+        /* Peek: if next argument doesn't start with '-', treat it as pattern */
+        if (argv[argi][0] != '-') break;
+    }
+
+    if (argi >= argc) {
+        fprintf(stderr, "Error: missing pattern\n");
+        print_usage(argv[0]);
+        return 2;
+    }
+
+    const char *pattern = argv[argi++];
+    int files_provided = (argi < argc);
+
+    /* compile regex */
+    regex_t re;
+    int cflags = REG_NOSUB | REG_NEWLINE; /* REG_NOSUB since we don't need submatches; REG_NEWLINE: '.' won't match newline */
+    if (flag_i) cflags |= REG_ICASE;
+
+    int rc = regcomp(&re, pattern, cflags);
+    if (rc != 0) {
+        char errbuf[256];
+        regerror(rc, &re, errbuf, sizeof(errbuf));
+        fprintf(stderr, "Regex compile error: %s\n", errbuf);
+        return 2;
+    }
+
+    int multiple_files = (argc - argi) > 1 || (!files_provided ? 0 : (argc - argi) > 1);
+    int any_match_overall = 0;
+
+    if (!files_provided) {
+        /* read from stdin */
+        FILE *fp = stdin;
+        int matched = process_stream(fp, NULL, &re, 0 /*show_filename*/, flag_n, flag_v, flag_c, flag_l);
+        if (matched) any_match_overall = 1;
+    } else {
+        for (int i = argi; i < argc; ++i) {
+            const char *fname = argv[i];
+            FILE *fp = fopen(fname, "r");
+            if (!fp) {
+                fprintf(stderr, "mygrep: cannot open '%s': %s\n", fname, strerror(errno));
+                continue;
+            }
+            int show_filename = (argc - argi) > 1; /* show filename if more than one file provided */
+            int matched = process_stream(fp, fname, &re, show_filename, flag_n, flag_v, flag_c, flag_l);
+            if (matched) any_match_overall = 1;
+            fclose(fp);
+        }
+    }
+
+    regfree(&re);
+
+    /* exit status: 0 if any matches found, 1 if no matches, 2 if error */
+    return any_match_overall ? 0 : 1;
+}
