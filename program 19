@@ -1,0 +1,52 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+
+int counter = 0;                 // Shared resource
+pthread_mutex_t lock;            // Mutex variable
+
+// Function executed by each thread
+void* process(void* arg) {
+    int thread_id = *(int*)arg;
+
+    // Try to enter critical section
+    pthread_mutex_lock(&lock);
+    printf("Thread %d entered critical section.\n", thread_id);
+
+    // Critical section (shared resource access)
+    for (int i = 0; i < 5; i++) {
+        counter++;
+        printf("Thread %d incremented counter to %d\n", thread_id, counter);
+        sleep(1);
+    }
+
+    printf("Thread %d leaving critical section.\n\n", thread_id);
+    pthread_mutex_unlock(&lock); // Leave critical section
+
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t threads[3];
+    int thread_ids[3] = {1, 2, 3};
+
+    // Initialize the mutex
+    pthread_mutex_init(&lock, NULL);
+
+    // Create threads
+    for (int i = 0; i < 3; i++) {
+        pthread_create(&threads[i], NULL, process, &thread_ids[i]);
+    }
+
+    // Wait for threads to finish
+    for (int i = 0; i < 3; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    // Destroy the mutex
+    pthread_mutex_destroy(&lock);
+
+    printf("Final counter value: %d\n", counter);
+    return 0;
+}
