@@ -1,0 +1,98 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    int n, i, j, head, total = 0, temp, size, direction;
+    int request[50], left[50], right[50];
+    int lcount = 0, rcount = 0, seekSequence[100], index = 0;
+
+    printf("Enter total number of disk requests: ");
+    scanf("%d", &n);
+
+    printf("Enter the request sequence:\n");
+    for(i = 0; i < n; i++)
+        scanf("%d", &request[i]);
+
+    printf("Enter initial head position: ");
+    scanf("%d", &head);
+
+    printf("Enter total disk size: ");
+    scanf("%d", &size);
+
+    printf("Enter head movement direction (1 for high, 0 for low): ");
+    scanf("%d", &direction);
+
+    // Split requests into left and right of head
+    for(i = 0; i < n; i++) {
+        if(request[i] < head)
+            left[lcount++] = request[i];
+        else
+            right[rcount++] = request[i];
+    }
+
+    // Sort both sides
+    for(i = 0; i < lcount - 1; i++)
+        for(j = 0; j < lcount - i - 1; j++)
+            if(left[j] > left[j + 1]) {
+                temp = left[j];
+                left[j] = left[j + 1];
+                left[j + 1] = temp;
+            }
+
+    for(i = 0; i < rcount - 1; i++)
+        for(j = 0; j < rcount - i - 1; j++)
+            if(right[j] > right[j + 1]) {
+                temp = right[j];
+                right[j] = right[j + 1];
+                right[j + 1] = temp;
+            }
+
+    printf("\nDisk Head Movement Sequence (SCAN):\n");
+    printf("%d", head);
+
+    // SCAN towards high (right) first
+    if(direction == 1) {
+        for(i = 0; i < rcount; i++) {
+            total += abs(head - right[i]);
+            head = right[i];
+            seekSequence[index++] = head;
+        }
+        // Move to end of disk
+        total += abs(size - 1 - head);
+        head = size - 1;
+
+        // Now move left
+        for(i = lcount - 1; i >= 0; i--) {
+            total += abs(head - left[i]);
+            head = left[i];
+            seekSequence[index++] = head;
+        }
+    }
+    // SCAN towards low (left) first
+    else {
+        for(i = lcount - 1; i >= 0; i--) {
+            total += abs(head - left[i]);
+            head = left[i];
+            seekSequence[index++] = head;
+        }
+        // Move to start of disk
+        total += abs(head - 0);
+        head = 0;
+
+        // Now move right
+        for(i = 0; i < rcount; i++) {
+            total += abs(head - right[i]);
+            head = right[i];
+            seekSequence[index++] = head;
+        }
+    }
+
+    // Print the seek sequence
+    for(i = 0; i < index; i++)
+        printf(" -> %d", seekSequence[i]);
+
+    printf("\n\nTotal Seek Time = %d", total);
+    printf("\nAverage Seek Time = %.2f\n", (float)total / n);
+
+    return 0;
+}
