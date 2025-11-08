@@ -1,0 +1,95 @@
+#include <stdio.h>
+
+int main() {
+    int frames, pages, page[30], frame[10];
+    int i, j, k, pos, fault = 0, max, found, future[10];
+
+    printf("Enter number of frames: ");
+    scanf("%d", &frames);
+
+    printf("Enter number of pages: ");
+    scanf("%d", &pages);
+
+    printf("Enter page reference string:\n");
+    for(i = 0; i < pages; i++)
+        scanf("%d", &page[i]);
+
+    for(i = 0; i < frames; i++)
+        frame[i] = -1; // initialize all frames to empty
+
+    printf("\nPage\tFrames\t\tStatus\n");
+    printf("--------------------------------\n");
+
+    for(i = 0; i < pages; i++) {
+        found = 0;
+
+        // Check if page already exists in a frame
+        for(j = 0; j < frames; j++) {
+            if(frame[j] == page[i]) {
+                found = 1;
+                break;
+            }
+        }
+
+        // If page not found -> page fault
+        if(found == 0) {
+            // If there is still space left
+            for(j = 0; j < frames; j++) {
+                if(frame[j] == -1) {
+                    frame[j] = page[i];
+                    fault++;
+                    found = 1;
+                    break;
+                }
+            }
+        }
+
+        // If all frames are full and page not found
+        if(found == 0) {
+            for(j = 0; j < frames; j++) {
+                future[j] = -1;
+                for(k = i + 1; k < pages; k++) {
+                    if(frame[j] == page[k]) {
+                        future[j] = k; // find next use of this frame
+                        break;
+                    }
+                }
+            }
+
+            pos = -1;
+            max = -1;
+            for(j = 0; j < frames; j++) {
+                if(future[j] == -1) {
+                    pos = j; // page not used again
+                    break;
+                }
+                if(future[j] > max) {
+                    max = future[j];
+                    pos = j;
+                }
+            }
+
+            frame[pos] = page[i];
+            fault++;
+        }
+
+        // Print current state
+        printf("%d\t", page[i]);
+        for(j = 0; j < frames; j++) {
+            if(frame[j] != -1)
+                printf("%d ", frame[j]);
+            else
+                printf("- ");
+        }
+
+        if(found == 1 && j <= frames)
+            printf("\tPage Fault\n");
+        else if(found == 0)
+            printf("\tPage Fault\n");
+        else
+            printf("\tNo Fault\n");
+    }
+
+    printf("\nTotal Page Faults = %d\n", fault);
+    return 0;
+}
