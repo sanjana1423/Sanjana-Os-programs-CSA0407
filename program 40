@@ -1,0 +1,51 @@
+#include <stdio.h>
+
+// Structure to store permissions
+struct Permissions {
+    int read;
+    int write;
+    int execute;
+};
+
+// Function to display permissions
+void displayPermissions(struct Permissions p) {
+    printf("%c", p.read ? 'r' : '-');
+    printf("%c", p.write ? 'w' : '-');
+    printf("%c", p.execute ? 'x' : '-');
+}
+
+int main() {
+    struct Permissions owner = {1, 1, 1};   // rwx
+    struct Permissions group = {1, 0, 1};   // r-x
+    struct Permissions others = {1, 0, 0};  // r--
+
+    printf("Simulating Linux File Access Permissions\n");
+    printf("=========================================\n\n");
+
+    printf("User Types: Owner, Group, Others\n");
+    printf("Permission Types: Read (r), Write (w), Execute (x)\n\n");
+
+    printf("File: sample.txt\n");
+    printf("Permission Representation: ");
+    displayPermissions(owner);
+    displayPermissions(group);
+    displayPermissions(others);
+    printf("\n\n");
+
+    printf("Detailed View:\n");
+    printf("Owner  : ");
+    displayPermissions(owner);
+    printf("  -> Full access (rwx)\n");
+
+    printf("Group  : ");
+    displayPermissions(group);
+    printf("  -> Read and execute only (r-x)\n");
+
+    printf("Others : ");
+    displayPermissions(others);
+    printf("  -> Read only (r--)\n");
+
+    printf("\nNumeric (Octal) Representation: 754\n");
+
+    return 0;
+}
