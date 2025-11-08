@@ -1,0 +1,61 @@
+#include <stdio.h>
+
+int main() {
+    int frames, pages, page[30], frame[10];
+    int i, j, k, avail, count = 0;
+
+    printf("Enter number of frames: ");
+    scanf("%d", &frames);
+
+    printf("Enter number of pages: ");
+    scanf("%d", &pages);
+
+    printf("Enter page reference string:\n");
+    for(i = 0; i < pages; i++)
+        scanf("%d", &page[i]);
+
+    for(i = 0; i < frames; i++)
+        frame[i] = -1; // initialize all frames as empty
+
+    j = 0; // pointer for FIFO order
+    printf("\nPage\tFrames\t\tStatus\n");
+    printf("--------------------------------\n");
+
+    for(i = 0; i < pages; i++) {
+        avail = 0;
+        for(k = 0; k < frames; k++) {
+            if(frame[k] == page[i]) {
+                avail = 1;
+                break;
+            }
+        }
+
+        if(avail == 0) { // page fault occurs
+            frame[j] = page[i];
+            j = (j + 1) % frames;
+            count++;
+
+            printf("%d\t", page[i]);
+            for(k = 0; k < frames; k++) {
+                if(frame[k] != -1)
+                    printf("%d ", frame[k]);
+                else
+                    printf("- ");
+            }
+            printf("\tPage Fault\n");
+        }
+        else {
+            printf("%d\t", page[i]);
+            for(k = 0; k < frames; k++) {
+                if(frame[k] != -1)
+                    printf("%d ", frame[k]);
+                else
+                    printf("- ");
+            }
+            printf("\tNo Fault\n");
+        }
+    }
+
+    printf("\nTotal Page Faults = %d\n", count);
+    return 0;
+}
